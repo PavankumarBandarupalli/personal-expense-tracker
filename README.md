@@ -4,21 +4,19 @@
 
 Organize your finances with a simple dashboard, transaction management, category-based tracking, and monthly summaries.
 
-<!-- Add your main dashboard screenshot here after creating it. -->
-
 ## 📌 Table of Contents
 
-- [Overview](#-overview)
-- [Features](#-features)
-- [Screenshots](#-screenshots)
-- [Technology Stack](#-technology-stack)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-- [How to Use](#-how-to-use)
-- [Database and Data Storage](#-database-and-data-storage)
-- [Security](#-security)
-- [Future Improvements](#-future-improvements)
-- [What I Learned](#-what-i-learned)
+- [Overview]
+- [Features]
+- [Screenshots]
+- [Technology Stack]
+- [Project Structure]
+- [Getting Started]
+- [How to Use]
+- [Database and Data Storage]
+- [Security]
+- [Future Improvements]
+- [What I Learned]
 
 
 ## 🌟 Overview
@@ -69,26 +67,26 @@ The project was developed to practice Python programming, backend web developmen
 - CSRF protection using Flask-WTF.
 - Input validation for transaction and budget forms.
 
-## 🖼️ Screenshots
+##  Screenshots
 
 Screenshots help visitors understand the application before installing it.
 
-<!-- Replace these example paths with screenshots you add to the repository. -->
+
 
 ### Dashboard
-![Personal Expense Tracker Dashboard](screenshots/dashboard.png)
+![alt text](DASHBOARD.png)
 
-### Add Income or Expense
-![Transaction Form](screenshots/add-transaction.png)
+### Add Income and Expense
+![alt text](<income transaction.png>)
+![alt text](<Expense transaction.png>)
 
 ### Transaction History
-![Transaction History](screenshots/transaction-history.png)
+![alt text](<Transaction history.png>)
 
 ### Monthly Reports
-![Monthly Reports and Charts](screenshots/monthly-reports.png)
-
-### Budget Management
-![Monthly Budget Management](screenshots/monthly-budget.png)
+![alt text](<Monthly report.png>)
+### Monthly Budget Management
+![alt text](<monthly budget management.png>)
 
 ## 🛠️ Technology Stack
 
@@ -116,14 +114,13 @@ personal-expense-tracker/
 │   └── index.html
 ├── static/
 │   └── style.css
-└── screenshots/
-    ├── dashboard.png
-    ├── add-transaction.png
-    ├── transaction-history.png
-    ├── monthly-reports.png
-    └── monthly-budget.png
-```
-
+|──Screenshots\
+    |-Dashboard.png
+    |-Expense transaction.png
+    |-Income transaction.png
+    |-Monthly budget transaction.png
+    |-Monthly report.png
+    |-Transaction history.png    
 The SQLite database and local transaction data are created or maintained separately and should not be committed to the public repository.
 
 ## 🚀 Getting Started
@@ -143,31 +140,13 @@ git clone https://github.com/pavankumarBandarupalli/personal-expense-tracker.git
 cd personal-expense-tracker
 ```
 
-Replace `YOUR-USERNAME` with the actual GitHub username that owns the repository.
-
-### 2. Create a virtual environment
-
-On Windows:
-
-```powershell
-py -m venv .venv
-```
-
-Activate it:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-If PowerShell blocks activation, you can use the environment's Python executable directly instead.
-
-### 3. Install dependencies
+###  Install dependencies
 
 ```powershell
 py -m pip install -r requirements.txt
 ```
 
-### 4. Configure the secret key
+###  Configure the secret key
 
 In Windows PowerShell, generate a secret key for the current session:
 
@@ -177,13 +156,13 @@ $env:FLASK_SECRET_KEY = py -c "import secrets; print(secrets.token_hex(32))"
 
 Keep secret keys out of source code and never commit them to GitHub.
 
-### 5. Run the application
+###  Run the application
 
 ```powershell
 py app.py
 ```
 
-### 6. Open the application
+###  Open the application
 
 Visit the following address in your browser:
 
