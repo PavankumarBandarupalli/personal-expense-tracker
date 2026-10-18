@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="navbar">
+        <h2>MyFinance</h2>
+        <span>Personal Expense Tracker</span>
+    </header>
+
+    <main class="container">
+        <section class="welcome">
+            <h1>Dashboard</h1>
+            <p>Track your money. Manage it better.</p>
+        </section>
+
+        <section class="summary">
+            <div class="card income-card">
+                <p>Total Income</p>
+                <h2>₹{{ "%.2f"|format(total_income) }}</h2>
+            </div>
+            <div class="card expense-card">
+                <p>Total Expenses</p>
+                <h2>₹{{ "%.2f"|format(total_expenses) }}</h2>
+            </div>
+            <div class="card balance-card">
+                <p>Remaining Balance</p>
+                <h2>₹{{ "%.2f"|format(balance) }}</h2>
+            </div>
+        </section>
+
+        <!-- Monthly Budget System -->
+        <section class="panel budget-panel">
+            <h2>Monthly Budget</h2>
+            <p>Set a spending limit for {{ current_month }} and track your expenses.</p>
+
+            <form action="{{ url_for('set_budget') }}" method="POST" class="budget-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="monthly_budget">Monthly budget (₹)</label>
+                    <input
+                        type="number"
+                        id="monthly_budget"
+                        name="monthly_budget"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="e.g. 10000"
+                        value="{{ '%.2f'|format(monthly_budget) if monthly_budget > 0 else '' }}"
+                        required
+                    >
+                </div>
+                <button type="submit">Save Monthly Budget</button>
+            </form>
+
+            <div class="summary budget-summary">
+                <div class="card">
+                    <p>Budget Amount</p>
+                    <h2>₹{{ "%.2f"|format(monthly_budget) }}</h2>
+                </div>
+                <div class="card expense-card">
+                    <p>Spent This Month</p>
+                    <h2>₹{{ "%.2f"|format(current_month_expenses) }}</h2>
+                </div>
+                <div class="card {{ 'expense-card' if budget_remaining < 0 else 'balance-card' }}">
+                    <p>{{ 'Over Budget' if budget_remaining < 0 else 'Budget Remaining' }}</p>
+                    <h2>₹{{ "%.2f"|format(budget_remaining|abs if budget_remaining < 0 else budget_remaining) }}</h2>
+                </div>
+            </div>
+
+            {% if monthly_budget > 0 %}
+                <div class="budget-progress-heading">
+                    <span>Budget used</span>
+                    <strong>{{ "%.1f"|format(budget_percentage) }}%</strong>
+                </div>
+                <div
+                    class="budget-progress-track"
+                    role="progressbar"
+                    aria-label="Monthly budget used"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow="{{ [budget_percentage, 100]|min }}"
+                >
+                    <div
+                        class="budget-progress-fill {{ 'over-budget' if budget_exceeded else '' }}"
+                        style="width: {{ [budget_percentage, 100]|min }}%;"
+                    ></div>
+                </div>
+
+                {% if budget_exceeded %}
+                    <p class="budget-warning" role="alert">
+                        ⚠️ You have exceeded your monthly budget by ₹{{ "%.2f"|format(current_month_expenses - monthly_budget) }}.
+                    </p>
+                {% elif budget_percentage >= 80 %}
+                    <p class="budget-notice">
+                        You have used {{ "%.1f"|format(budget_percentage) }}% of your monthly budget. Spend carefully.
+                    </p>
+                {% else %}
+                    <p class="budget-success">You are within your monthly budget.</p>
+                {% endif %}
+            {% else %}
+                <p class="budget-notice">Enter a budget above to start tracking your monthly spending.</p>
+            {% endif %}
+        </section>
+
+<!-- Charts Dashboard -->
+<section class="charts-container">
+    <div class="panel chart-panel">
+        <h2>Expense Breakdown</h2>
+        <div class="chart-wrapper">
+            <canvas
+                id="expenseChart"
+                data-labels='{{ expense_chart_labels | tojson }}'
+                data-values='{{ expense_chart_values | tojson }}'>
+            </canvas>
+        </div>
+    </div>
+
+    <div class="panel chart-panel">
+        <h2>Income vs Expenses</h2>
+        <div class="chart-wrapper">
+            <canvas
+                id="incomeExpenseChart"
+                data-income="{{ total_income }}"
+                data-expenses="{{ total_expenses }}">
+            </canvas>
+        </div>
+    </div>
+</section>
+
+<!-- Monthly Expense Report -->
+<section class="panel monthly-report">
+    <h2>Monthly Expense Report</h2>
+    <p>Review your income, expenses, and savings month by month.</p>
+
+    <div class="form-group">
+        <label for="reportMonth">Select Month</label>
+        <input type="month" id="reportMonth">
+    </div>
+
+    <div class="summary monthly-summary">
+        <div class="card income-card">
+            <p>Monthly Income</p>
+            <h2 id="monthlyIncome">₹0.00</h2>
+        </div>
+
+        <div class="card expense-card">
+            <p>Monthly Expenses</p>
+            <h2 id="monthlyExpenses">₹0.00</h2>
+        </div>
+
+        <div class="card balance-card">
+            <p>Monthly Savings</p>
+            <h2 id="monthlySavings">₹0.00</h2>
+        </div>
+    </div>
+
+    <div class="chart-wrapper monthly-chart-wrapper">
+        <canvas id="monthlyExpenseChart"></canvas>
+    </div>
+</section>
+
+
+
+        <section class="messages" aria-live="polite">
+            {% for message in get_flashed_messages() %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        </section>
+
+        <!-- Add Transaction: this form was missing from your uploaded HTML -->
+        <section class="panel">
+            <h2>Add Transaction</h2>
+            <form action="{{ url_for('add_transaction') }}" method="POST" class="transaction-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="type">Transaction Type</label>
+                    <select id="type" name="type" required>
+                        <option value="income">Income</option>
+                        <option value="expense" selected>Expense</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="title">Description</label>
+                    <input
+                        type="text"
+                        id="title"
+                        name="title"
+                        placeholder="e.g. Lunch, salary"
+                        maxlength="100"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="amount">Amount (₹)</label>
+                    <input
+                        type="number"
+                        id="amount"
+                        name="amount"
+                        placeholder="Enter amount"
+                        min="0.01"
+                        step="0.01"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category" name="category" required></select>
+                </div>
+
+                <button type="submit">Add Transaction</button>
+            </form>
+        </section>
+
+        <!-- Transaction filters and export -->
+        <section class="panel">
+            
+<div class="history-header">
+    <h2>Transaction History</h2>
+
+    <div class="export-buttons">
+        <a href="{{ url_for('export_csv') }}" class="export-btn">
+            &#8595; Export CSV
+        </a>
+
+        <a href="{{ url_for('export_excel') }}" class="export-btn">
+            &#8595; Export Excel
+        </a>
+    </div>
+</div>
+
+
+            <div class="filters">
+                <div class="form-group">
+                    <label for="searchTransaction">Search description</label>
+                    <input type="text" id="searchTransaction" placeholder="Search transactions...">
+                </div>
+
+                <div class="form-group">
+                    <label for="filterType">Transaction Type</label>
+                    <select id="filterType">
+                        <option value="all">All Transactions</option>
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="filterCategory">Category</label>
+                    <select id="filterCategory">
+                        <option value="all">All Categories</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="filterDate">Date</label>
+                    <input type="date" id="filterDate">
+                </div>
+
+                <button type="button" id="clearFilters">Clear Filters</button>
+            </div>
+
+            <p id="filterResults" aria-live="polite"></p>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.get('date', 'N/A') }}</td>
+                            <td>{{ transaction['title'] }}</td>
+                            <td>{{ transaction['category'] }}</td>
+                            <td>{{ transaction['type']|title }}</td>
+                            <td class="{{ 'positive' if transaction['type'] == 'income' else 'negative' }}">
+                                {{ '+' if transaction['type'] == 'income' else '−' }}₹{{ "%.2f"|format(transaction['amount']) }}
+                            </td>
+                            <td class="actions">
+                                <button
+                                    type="button"
+                                    class="edit-btn"
+                                    data-id="{{ loop.index0 }}"
+                                    data-title="{{ transaction['title'] }}"
+                                    data-amount="{{ transaction['amount'] }}"
+                                    data-type="{{ transaction['type'] }}"
+                                    data-category="{{ transaction['category'] }}"
+                                    data-edit-url="{{ url_for('edit_transaction', transaction_id=loop.index0) }}"
+                                >Edit</button>
+
+                                <form
+                                    action="{{ url_for('delete_transaction', transaction_id=loop.index0) }}"
+                                    method="POST"
+                                    class="delete-form"
+                                    onsubmit="return confirm('Are you sure you want to delete this transaction?');"
+                                >
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="delete-btn">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr class="empty-row">
+                            <td colspan="6">No transactions yet. Add your first transaction!</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Personal Expense Tracker · Python, Flask, HTML and CSS</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+        const categoryMap = {
+            income: [
+                "Salary",
+                "Scholarship",
+                "Pocket Money",
+                "Freelancing",
+                "Business Income",
+                "Investment Returns",
+                "Gifts Received",
+                "Other Income"
+            ],
+            expense: [
+                "Food",
+                "Travel",
+                "Education Fees",
+                "Shopping",
+                "Rent / Accommodation",
+                "Bills / Utilities",
+                "Healthcare",
+                "Entertainment",
+                "Other Expenses"
+            ]
+        };
+
+        // Add-transaction category dropdown
+        const typeSelect = document.getElementById("type");
+        const categorySelect = document.getElementById("category");
+
+        function updateAddCategories() {
+            const categories = categoryMap[typeSelect.value] || [];
+            categorySelect.replaceChildren();
+
+            categories.forEach(function(category) {
+                const option = document.createElement("option");
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
+            });
+        }
+
+        typeSelect.addEventListener("change", updateAddCategories);
+        updateAddCategories();
+
+        // Edit an existing transaction
+        function editTransaction(title, amount, type, category, editUrl) {
+            const newTitle = prompt("Enter description:", title);
+            if (newTitle === null) return;
+            if (newTitle.trim() === "") {
+                alert("Description cannot be empty.");
+                return;
+            }
+            if (newTitle.trim().length > 100) {
+                alert("Description must not exceed 100 characters.");
+                return;
+            }
+
+            const newAmount = prompt("Enter amount (₹):", amount);
+            if (newAmount === null) return;
+
+            const parsedAmount = Number(newAmount);
+            if (newAmount.trim() === "" || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+                alert("Enter a valid amount greater than zero.");
+                return;
+            }
+
+            const newType = prompt("Enter type: income or expense", type);
+            if (newType === null) return;
+
+            const normalizedType = newType.trim().toLowerCase();
+            if (!Object.hasOwn(categoryMap, normalizedType)) {
+                alert("Type must be income or expense.");
+                return;
+            }
+
+            let defaultCategory = category;
+            if (!categoryMap[normalizedType].includes(defaultCategory)) {
+                defaultCategory = categoryMap[normalizedType][0];
+            }
+
+            const newCategory = prompt(
+                "Enter a category from this list:\n" + categoryMap[normalizedType].join(", "),
+                defaultCategory
+            );
+            if (newCategory === null) return;
+
+            const normalizedCategory = newCategory.trim();
+            if (!categoryMap[normalizedType].includes(normalizedCategory)) {
+                alert("Please enter a valid category from the list.");
+                return;
+            }
+
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = editUrl;
+
+            // Include the CSRF token required by Flask-WTF.
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "csrf_token";
+            csrfInput.value = {{ csrf_token() | tojson }};
+            form.appendChild(csrfInput);
+
+            const fields = {
+                title: newTitle.trim(),
+                amount: String(parsedAmount),
+                type: normalizedType,
+                category: normalizedCategory
+            };
+
+            Object.entries(fields).forEach(function([name, value]) {
+                const input = document.createElement("input");
+                input.type = "hidden";
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            });
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        document.querySelectorAll(".edit-btn").forEach(function(button) {
+            button.addEventListener("click", function() {
+                editTransaction(
+                    button.dataset.title,
+                    button.dataset.amount,
+                    button.dataset.type,
+                    button.dataset.category,
+                    button.dataset.editUrl
+                );
+            });
+        });
+
+        // Search and filter transactions
+        const searchInput = document.getElementById("searchTransaction");
+        const filterType = document.getElementById("filterType");
+        const filterCategory = document.getElementById("filterCategory");
+        const filterDate = document.getElementById("filterDate");
+        const clearFilters = document.getElementById("clearFilters");
+        const filterResults = document.getElementById("filterResults");
+
+        const transactionRows = Array.from(document.querySelectorAll("tbody tr"))
+            .filter(row => row.querySelector(".edit-btn"));
+
+        function updateFilterCategories() {
+            const selectedType = filterType.value;
+            const currentCategory = filterCategory.value;
+
+            filterCategory.replaceChildren();
+
+            const allOption = document.createElement("option");
+            allOption.value = "all";
+            allOption.textContent = "All Categories";
+            filterCategory.appendChild(allOption);
+
+            const categories = selectedType === "all"
+                ? [...new Set(Object.values(categoryMap).flat())]
+                : categoryMap[selectedType];
+
+            categories.forEach(function(category) {
+                const option = document.createElement("option");
+                option.value = category;
+                option.textContent = category;
+                filterCategory.appendChild(option);
+            });
+
+            if ([...filterCategory.options].some(option => option.value === currentCategory)) {
+                filterCategory.value = currentCategory;
+            } else {
+                filterCategory.value = "all";
+            }
+        }
+
+        function applyFilters() {
+            const searchText = searchInput.value.trim().toLowerCase();
+            const selectedType = filterType.value;
+            const selectedCategory = filterCategory.value;
+            const selectedDate = filterDate.value;
+            let visibleCount = 0;
+
+            transactionRows.forEach(function(row) {
+                const cells = row.querySelectorAll("td");
+                const rowDate = cells[0].textContent.trim();
+                const description = cells[1].textContent.trim().toLowerCase();
+                const category = cells[2].textContent.trim();
+                const type = cells[3].textContent.trim().toLowerCase();
+
+                const matches =
+                    description.includes(searchText) &&
+                    (selectedType === "all" || type === selectedType) &&
+                    (selectedCategory === "all" || category === selectedCategory) &&
+                    (!selectedDate || rowDate === selectedDate);
+
+                row.hidden = !matches;
+                if (matches) visibleCount++;
+            });
+
+            filterResults.textContent =
+                `Showing ${visibleCount} of ${transactionRows.length} transactions.`;
+        }
+
+        searchInput.addEventListener("input", applyFilters);
+
+        filterType.addEventListener("change", function() {
+            updateFilterCategories();
+            applyFilters();
+        });
+
+        filterCategory.addEventListener("change", applyFilters);
+        filterDate.addEventListener("change", applyFilters);
+
+        clearFilters.addEventListener("click", function() {
+            searchInput.value = "";
+            filterType.value = "all";
+            filterDate.value = "";
+            updateFilterCategories();
+            filterCategory.value = "all";
+            applyFilters();
+        });
+
+        updateFilterCategories();
+        applyFilters();
+
+// ===== Expense Breakdown Doughnut Chart =====
+    const expenseCanvas = document.getElementById("expenseChart");
+    const expenseLabels = JSON.parse(expenseCanvas.dataset.labels);
+    const expenseValues = JSON.parse(expenseCanvas.dataset.values);
+
+    new Chart(expenseCanvas, {
+        type: "doughnut",
+        data: {
+            labels: expenseLabels,
+            datasets: [{
+                label: "Expenses (₹)",
+                data: expenseValues,
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: "bottom"
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ": ₹" +
+                                Number(context.raw).toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // ===== Income vs Expenses Bar Chart =====
+    const incomeCanvas = document.getElementById("incomeExpenseChart");
+    const income = Number(incomeCanvas.dataset.income);
+    const expenses = Number(incomeCanvas.dataset.expenses);
+
+    new Chart(incomeCanvas, {
+        type: "bar",
+        data: {
+            labels: ["Income", "Expenses"],
+            datasets: [{
+                label: "Amount (₹)",
+                data: [income, expenses],
+                backgroundColor: ["#22a06b", "#e05252"],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return "₹" + Number(context.raw).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return "₹" + Number(value).toLocaleString("en-IN");
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+// ===== Monthly Expense Report =====
+
+const reportMonth = document.getElementById("reportMonth");
+const monthlyIncomeElement = document.getElementById("monthlyIncome");
+const monthlyExpensesElement = document.getElementById("monthlyExpenses");
+const monthlySavingsElement = document.getElementById("monthlySavings");
+
+// Monthly data prepared by Flask
+const monthlyData = {{ monthly_data | tojson }};
+const monthlyLabels = {{ monthly_labels | tojson }};
+const monthlyExpenseValues = {{ monthly_expense_values | tojson }};
+
+function formatRupees(amount) {
+    return "₹" + Number(amount).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+// Select the current month by default
+const today = new Date();
+const currentMonth =
+    today.getFullYear() + "-" +
+    String(today.getMonth() + 1).padStart(2, "0");
+
+reportMonth.value = currentMonth;
+
+const monthlyChart = new Chart(
+    document.getElementById("monthlyExpenseChart"),
+    {
+        type: "line",
+        data: {
+            labels: monthlyLabels,
+            datasets: [{
+                label: "Monthly Expenses (₹)",
+                data: monthlyExpenseValues,
+                tension: 0.3,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: "bottom"
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: value => "₹" +
+                            Number(value).toLocaleString("en-IN")
+                    }
+                }
+            }
+        }
+    }
+);
+
+function updateMonthlyReport() {
+    const selectedMonth = reportMonth.value;
+    const data = monthlyData[selectedMonth] || {
+        income: 0,
+        expenses: 0
+    };
+
+    const income = Number(data.income);
+    const expenses = Number(data.expenses);
+    const savings = income - expenses;
+
+    monthlyIncomeElement.textContent = formatRupees(income);
+    monthlyExpensesElement.textContent = formatRupees(expenses);
+    monthlySavingsElement.textContent = formatRupees(savings);
+}
+
+reportMonth.addEventListener("change", updateMonthlyReport);
+
+updateMonthlyReport();
+
+
+    </script>
+</body>
+</html>
