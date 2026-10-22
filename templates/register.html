@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register | Personal Expense Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body><main class="container"><section class="panel">
+  <h1>Create an account</h1>
+  {% with messages = get_flashed_messages() %}{% for message in messages %}<p role="status">{{ message }}</p>{% endfor %}{% endwith %}
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="username">Username</label><input id="username" type="text" name="username" maxlength="50" autocomplete="username" required>
+    <label for="email">Email</label><input id="email" type="email" name="email" maxlength="254" autocomplete="email" required>
+    <label for="password">Password (at least 10 characters)</label><input id="password" type="password" name="password" minlength="10" autocomplete="new-password" required>
+    <button type="submit">Create account</button>
+  </form>
+  <p>Already registered? <a href="{{ url_for('auth.login') }}">Login</a></p>
+</section></main></body></html>

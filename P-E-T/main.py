@@ -1,3 +1,4 @@
+#$env:FLASK_SECRET_KEY = py -c "import secrets; print(secrets.token_hex(32))"
 from datetime import date, datetime
 import json
 import os
@@ -303,8 +304,3 @@ while True:
     else:
         print("Invalid choice!")
 
-#Edit a transaction's description successfully.
-# [ ] Edit an amount and verify the updated total.
-# [ ] Change a category successfully.
-# [ ] Filter transactions using a date (YYYY-MM-DD).
-# [ ] Restart the program and confirm edits remain saved in transactions.json.
