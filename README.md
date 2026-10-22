@@ -67,27 +67,6 @@ The project was developed to practice Python programming, backend web developmen
 - CSRF protection using Flask-WTF.
 - Input validation for transaction and budget forms.
 
-##  Screenshots
-
-Screenshots help visitors understand the application before installing it.
-
-
-
-### Dashboard
-![alt text](DASHBOARD.png)
-
-### Add Income and Expense
-![alt text](<income transaction.png>)
-![alt text](<Expense transaction.png>)
-
-### Transaction History
-![alt text](<Transaction history.png>)
-
-### Monthly Reports
-![alt text](<Monthly report.png>)
-### Monthly Budget Management
-![alt text](<monthly budget management.png>)
-
 ## 🛠️ Technology Stack
 
 | Technology | Purpose |
